@@ -1,7 +1,8 @@
 from typing import Optional
 
-from fastapi import FastAPI,Path,Query
+from fastapi import FastAPI,Path,Query,HTTPException
 from pydantic import BaseModel,Field
+from starlette import status
 
 app = FastAPI()
 
@@ -49,47 +50,57 @@ BOOKS =[
 
 ]
 
-@app.get("/books")
+@app.get("/books",status_code=status.HTTP_200_OK)
 async def read_all_books():
     return BOOKS
 
-@app.get("/books/{book_id}")
+@app.get("/books/{book_id}",status_code=status.HTTP_200_OK)
 async def read_book(book_id:int= Path(gt=0)):
     for book in BOOKS:
         if book.id == book_id:
             return book
-@app.get("/books/")
+    raise HTTPException(status_code=404, detail="Item not found")
+
+@app.get("/books/",status_code=status.HTTP_200_OK)
 async def read_book_by_rating(book_rating:int=Query(gt=0,lt=6)):
     book_to_return = []
     for book in BOOKS:
         if book.rating == book_rating:
             book_to_return.append(book)
     return book_to_return
-@app.post("/books/publish/")
+@app.post("/books/publish/",status_code=status.HTTP_201_CREATED)
 async def read_book_by_published_date(published_date:int = Query(gt=1999,lt=2031)):
     book_to_return = []
     for book in BOOKS:
         if book.published_date == published_date:
             book_to_return.append(book)
     return book_to_return
-@app.post("/create-book")
+@app.post("/create-book",status_code=status.HTTP_201_CREATED)
 async def create_book(book_request:BookRequest):
     new_book = Book(**book_request.model_dump())
     print(type(new_book))
     BOOKS.append(find_book_id(new_book))
 
-@app.put("/books/update_book")
+@app.put("/books/update_book",status_code=status.HTTP_204_NO_CONTENT)
 async def update_book(book_request:BookRequest):
+    book_change = False
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book_request.id:
             BOOKS[i] = Book(**book_request.model_dump())
+            book_change = True
+    if not(book_change):
+        raise HTTPException(status_code=404, detail="Item not found")
 
-@app.delete("/books/{book_id}")
+@app.delete("/books/{book_id}",status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(book_id:int = Path(gt=0)):
+    book_change = False
     for i in range(len(BOOKS)):
         if BOOKS[i].id == book_id:
             BOOKS.pop(i)
+            book_change = True
             break
+    if not(book_change):
+        raise HTTPException(status_code=404, detail="Item not found")
 
 def find_book_id(book:Book):
     # if len(BOOKS) >0:
